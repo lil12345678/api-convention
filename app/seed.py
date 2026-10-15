@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 
 from app.database import SessionLocal
-from app.models import  User, Hall, Device, Exhibition, ExhibitionEvent, Alarm, WorkOrder, EnergyReading, ParkingStat, CrowdStat, HeatmapPoint, EmergencyRecord
+from app.models import  User, Hall, Device, Exhibition, ExhibitionEvent, Alarm, WorkOrder, EnergyReading, ParkingStat, CrowdStat, HeatmapPoint, EmergencyRecord, Exhibitor, ExhibitorService, Camera
 from app.security import hash_password
 
 def seed_users_if_empty():
@@ -283,21 +283,35 @@ def seed_halls_if_empty():
         db.close()
 
 DEVICE_TYPES = [
-    {"leaf_type": "空调用电", "category": "monitor", "category_name": "监控设备", "group_name": "电气设备"},
-    {"leaf_type": "集中空调", "category": "monitor", "category_name": "监控设备", "group_name": "暖通设备"},
-    {"leaf_type": "辐射空调", "category": "monitor", "category_name": "监控设备", "group_name": "暖通设备"},
-    {"leaf_type": "应急照明", "category": "monitor", "category_name": "监控设备", "group_name": "电气设备"},
-    {"leaf_type": "照明插座", "category": "monitor", "category_name": "监控设备", "group_name": "电气设备"},
-    {"leaf_type": "景观照明", "category": "monitor", "category_name": "监控设备", "group_name": "电气设备"},
-    {"leaf_type": "入侵探测器", "category": "security", "category_name": "安防设备", "group_name": "弱电设备"},
-    {"leaf_type": "停车场匝道", "category": "security", "category_name": "安防设备", "group_name": "弱电设备"},
-    {"leaf_type": "门禁", "category": "security", "category_name": "安防设备", "group_name": "弱电设备"},
-    {"leaf_type": "照明", "category": "elevator", "category_name": "楼宇自控", "group_name": "电气设备"},
-    {"leaf_type": "冷热源", "category": "elevator", "category_name": "楼宇自控", "group_name": "暖通设备"},
-    {"leaf_type": "空调", "category": "elevator", "category_name": "楼宇自控", "group_name": "暖通设备"},
-    {"leaf_type": "电表", "category": "energy", "category_name": "能效设备", "group_name": "电气设备"},
-    {"leaf_type": "水表", "category": "energy", "category_name": "能效设备", "group_name": "给排水设备"},
+    {"leaf_type": "空调用电", "category": "monitor", "category_name": "监控设备", "group_name": "电气设备", "model": "DTSD1352-C"},
+    {"leaf_type": "集中空调", "category": "monitor", "category_name": "监控设备", "group_name": "暖通设备", "model": "GMV-560WM"},
+    {"leaf_type": "辐射空调", "category": "monitor", "category_name": "监控设备", "group_name": "暖通设备", "model": "RF-200"},
+    {"leaf_type": "应急照明", "category": "monitor", "category_name": "监控设备", "group_name": "电气设备", "model": "FZLZ-E3W"},
+    {"leaf_type": "照明插座", "category": "monitor", "category_name": "监控设备", "group_name": "电气设备", "model": "ADL400"},
+    {"leaf_type": "景观照明", "category": "monitor", "category_name": "监控设备", "group_name": "电气设备", "model": "LED-XQ36"},
+    {"leaf_type": "入侵探测器", "category": "security", "category_name": "安防设备", "group_name": "弱电设备", "model": "DS-PDP15P"},
+    {"leaf_type": "停车场道闸", "category": "security", "category_name": "安防设备", "group_name": "弱电设备", "model": "DS-TMG4B5"},
+    {"leaf_type": "门禁", "category": "security", "category_name": "安防设备", "group_name": "弱电设备", "model": "DS-K1T671M"},
+    {"leaf_type": "照明", "category": "elevator", "category_name": "楼宇自控", "group_name": "电气设备", "model": "KNX-LC8"},
+    {"leaf_type": "冷热源", "category": "elevator", "category_name": "楼宇自控", "group_name": "暖通设备", "model": "LSBLG-1200"},
+    {"leaf_type": "空调", "category": "elevator", "category_name": "楼宇自控", "group_name": "暖通设备", "model": "AHU-20"},
+    {"leaf_type": "电表", "category": "energy", "category_name": "能效设备", "group_name": "电气设备", "model": "DTSD1352"},
+    {"leaf_type": "水表", "category": "energy", "category_name": "能效设备", "group_name": "给排水设备", "model": "LXSG-50"},
 ]
+
+# 3D 模型 tagpoint.gltf 里的点位：设备类型 → (起始编号, 结束编号)，点位名形如 门禁.020
+SCENE_NODES = {
+    "空调用电": (1, 4),
+    "集中空调": (1, 4),
+    "辐射空调": (1, 4),
+    "应急照明": (1, 5),
+    "照明插座": (1, 6),
+    "景观照明": (1, 7),
+    "入侵探测器": (1, 4),
+    "停车场道闸": (16, 19),
+    "门禁": (20, 34),
+}
+DEFAULT_DEVICE_COUNT = 6  # 没有 3D 点位的设备类型，每种生成 6 台
 
 HALL_NAMES = [item["name"] for item in HALLS]
 STATUSES = ["在线", "在线", "在线", "在线", "离线", "故障"]
@@ -311,17 +325,24 @@ def seed_devices_if_empty():
             return
         index = 1
         for kind in DEVICE_TYPES:
-            for n in range(1, 7):
-                hall_name = HALL_NAMES[(index - 1) % len(HALL_NAMES)]
+            leaf = kind["leaf_type"]
+            if leaf in SCENE_NODES:
+                start, end = SCENE_NODES[leaf]
+                nodes = [f"{leaf}.{n:03d}" for n in range(start, end + 1)]
+            else:
+                nodes = [None] * DEFAULT_DEVICE_COUNT
+            for n, node in enumerate(nodes, start=1):
                 db.add(
                     Device(
-                        code=f"{kind['leaf_type']}-{n:02d}",
-                        name=f"{kind['leaf_type']}-{n:02d}",
+                        code=f"{leaf}-{n:02d}",
+                        name=f"{leaf}-{n:02d}",
                         category=kind["category"],
                         category_name=kind["category_name"],
-                        leaf_type=kind["leaf_type"],
+                        leaf_type=leaf,
                         group_name=kind["group_name"],
-                        hall_name=hall_name,
+                        model=kind["model"],
+                        scene_node=node,
+                        hall_name=HALL_NAMES[(index - 1) % len(HALL_NAMES)],
                         status=STATUSES[(index - 1) % len(STATUSES)],
                         floor="1F" if n % 2 else "2F",
                     )
@@ -677,3 +698,65 @@ def seed_emergency_if_empty():
         db.commit()
     finally:
         db.close()
+
+PROVINCES = ["河南", "湖北", "湖南", "广东", "江苏", "浙江", "山东", "河北", "四川", "陕西", "安徽", "北京", "上海"]
+COMPANY_SUFFIXES = ["智能装备", "机电科技", "新材料", "精密制造", "数控科技"]
+SERVICE_TYPES = ["展位搭建", "水电申请", "物流运输", "证件办理", "广告发布"]
+SERVICE_STATUSES = ["待处理", "处理中", "已完成"]
+
+
+def seed_exhibitors_if_empty():
+    db = SessionLocal()
+    try:
+        exists = db.scalar(select(Exhibitor).limit(1))
+        if exists is not None:
+            return
+        exhibitions = db.scalars(select(Exhibition).order_by(Exhibition.id)).all()
+        rng = random.Random(42)  # 固定种子：每次重建数据库生成的数据都一样
+        now = datetime.now()
+        for exhibition in exhibitions:
+            for n in range(1, 9):
+                province = rng.choice(PROVINCES)
+                exhibitor = Exhibitor(
+                    exhibition_id=exhibition.id,
+                    name=f"{province}{rng.choice(COMPANY_SUFFIXES)}有限公司",
+                    booth=f"{exhibition.hall_name}-A{n:02d}",
+                    province=province,
+                    hall_name=exhibition.hall_name,
+                )
+                db.add(exhibitor)
+                db.flush()  # 先写入拿到 exhibitor.id，下面的服务记录要用
+                for _ in range(rng.randint(1, 3)):
+                    created = now - timedelta(days=rng.randint(0, 20), hours=rng.randint(0, 23))
+                    db.add(
+                        ExhibitorService(
+                            exhibitor_id=exhibitor.id,
+                            service_type=rng.choice(SERVICE_TYPES),
+                            status=rng.choice(SERVICE_STATUSES),
+                            created_at=created.strftime("%Y-%m-%d %H:%M"),
+                        )
+                    )
+        db.commit()
+    finally:
+        db.close()
+
+
+def seed_cameras_if_empty():
+    db = SessionLocal()
+    try:
+        exists = db.scalar(select(Camera).limit(1))
+        if exists is not None:
+            return
+        for i, hall_name in enumerate(HALL_NAMES, start=1):
+            db.add(
+                Camera(
+                    name=f"{hall_name}入口摄像头",
+                    hall_name=hall_name,
+                    stream_url="",
+                    status="离线" if i % 5 == 0 else "在线",
+                )
+            )
+        db.add(Camera(name="东广场全景摄像头", hall_name=None, stream_url="", status="在线"))
+        db.commit()
+    finally:
+        db.close()       

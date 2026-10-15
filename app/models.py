@@ -46,6 +46,8 @@ class Device(Base):
     ) # 外键 → halls.name设备所在的馆
     status: Mapped[str] = mapped_column(String(16), nullable=False) # 设备状态：在线 / 离线 / 故障
     floor: Mapped[str] = mapped_column(String(8), nullable=False) # 设备楼层：1-3
+    model: Mapped[str] = mapped_column(String(64), nullable=False, default="") # 设备型号
+    scene_node: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True) # 3D 模型点位名，如 门禁.020；没有 3D 点位的设备为 NULL
 
 # halls.name
 #    └── exhibitions.hall_name     这场展会在哪个馆
@@ -163,4 +165,46 @@ class EmergencyRecord(Base):
     period: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
     period_key: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     value: Mapped[float] = mapped_column(Float, nullable=False)
+
+# exhibitions.id
+#    └── exhibitors.exhibition_id          这个展商参加哪场展会
+#            └── exhibitor_services.exhibitor_id   这条服务是哪个展商申请的
+
+class Exhibitor(Base):
+    __tablename__ = "exhibitors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    exhibition_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("exhibitions.id"), nullable=False, index=True
+    ) # 外键 → exhibitions.id
+    name: Mapped[str] = mapped_column(String(128), nullable=False) # 展商名称
+    booth: Mapped[str] = mapped_column(String(32), nullable=False) # 展位号，如 5号馆-A03
+    province: Mapped[str] = mapped_column(String(16), nullable=False, index=True) # 来源省份
+    hall_name: Mapped[str] = mapped_column(
+        String(32), ForeignKey("halls.name"), nullable=False, index=True
+    ) # 外键 → halls.name
+
+
+class ExhibitorService(Base):
+    __tablename__ = "exhibitor_services"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    exhibitor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("exhibitors.id"), nullable=False, index=True
+    ) # 外键 → exhibitors.id
+    service_type: Mapped[str] = mapped_column(String(32), nullable=False) # 展位搭建 / 水电申请 / 物流运输 / 证件办理 / 广告发布
+    status: Mapped[str] = mapped_column(String(16), nullable=False) # 待处理 / 处理中 / 已完成
+    created_at: Mapped[str] = mapped_column(String(32), nullable=False, index=True) # 申请时间
+
+
+class Camera(Base):
+    __tablename__ = "cameras"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False) # 摄像头名称
+    hall_name: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("halls.name"), nullable=True, index=True
+    ) # 所在场馆，馆外为 NULL
+    stream_url: Mapped[str] = mapped_column(String(255), nullable=False, default="") # 视频流地址，空字符串表示还没接入
+    status: Mapped[str] = mapped_column(String(16), nullable=False) # 在线 / 离线
     

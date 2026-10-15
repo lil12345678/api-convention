@@ -11,13 +11,17 @@ from app.models import (
     Device, 
     Exhibition, 
     ExhibitionEvent, Alarm, WorkOrder, EnergyReading,
-    ParkingStat, CrowdStat, HeatmapPoint, EmergencyRecord
+    ParkingStat, CrowdStat, HeatmapPoint, 
+    EmergencyRecord, Exhibitor, ExhibitorService, Camera
   )  # 必须导入，create_all 才能看到这张表
 from app.seed import (
     seed_users_if_empty,
-    seed_halls_if_empty, seed_devices_if_empty, seed_exhibitions_if_empty, seed_alarms_if_empty, 
+    seed_halls_if_empty, seed_devices_if_empty, 
+    seed_exhibitions_if_empty, seed_alarms_if_empty, 
     seed_work_orders_if_empty, seed_energy_readings_if_empty, 
-    seed_parking_if_empty, seed_crowd_if_empty, seed_heatmap_if_empty, seed_emergency_if_empty
+    seed_parking_if_empty, seed_crowd_if_empty, 
+    seed_heatmap_if_empty, seed_emergency_if_empty,
+    seed_exhibitors_if_empty, seed_cameras_if_empty
 )
 
 app = FastAPI(
@@ -30,9 +34,17 @@ app = FastAPI(
 from app.routers.auth import router as auth_router
 register_exception_handlers(app)
 app.include_router(auth_router)
+from app.routers.exhibitors import router as exhibitors_router
+from app.routers.cameras import router as cameras_router
+from app.routers.weather import router as weather_router
+app.include_router(exhibitors_router)
+app.include_router(cameras_router)
+app.include_router(weather_router)
 
 # 创建所有表
 Base.metadata.create_all(bind=engine)# 创建所有表，bind=engine 绑定引擎，用于创建表。
+
+#数据填充
 seed_halls_if_empty()# 填充场馆数据
 seed_devices_if_empty()# 填充设备数据
 seed_exhibitions_if_empty()# 填充展会数据
@@ -44,6 +56,9 @@ seed_crowd_if_empty()# 填充人群数据
 seed_heatmap_if_empty()# 填充热力图数据
 seed_emergency_if_empty()# 填充应急数据
 seed_users_if_empty()# 填充用户数据
+seed_exhibitions_if_empty()# 填充展会数据
+seed_exhibitors_if_empty()# 填充展商和展商服务数据
+seed_cameras_if_empty()# 填充摄像头数据
 
 app.add_middleware(# 添加中间件，用于处理跨域请求
     CORSMiddleware,
@@ -110,6 +125,8 @@ def device_to_dict(device: Device):
         "hall_name": device.hall_name,
         "status": device.status,
         "floor": device.floor,
+        "model": device.model,
+        "scene_node": device.scene_node,
     }
 @app.get("/api/devices")
 def list_devices(_user: User = Depends(get_current_user)):
@@ -133,6 +150,22 @@ def get_devices_count(_user: User = Depends(get_current_user)):
                 select(func.count()).select_from(Device).where(Device.status == status)
             )
         return ok(result)
+    finally:
+        db.close()
+
+@app.get("/api/devices/scene/{scene_node}")
+def get_device_by_scene_node(
+    scene_node: str,
+     _user: User = Depends(get_current_user)
+     ):
+     # 输入：3D 点位名，如 门禁.020
+    # 输出：绑定在这个点位上的那台设备
+    db = SessionLocal()
+    try:
+        device = db.scalar(select(Device).where(Device.scene_node == scene_node))
+        if device is None:
+            raise HTTPException(status_code=404, detail=f"未找到设备：{scene_node}")
+        return ok(device_to_dict(device))
     finally:
         db.close()
 

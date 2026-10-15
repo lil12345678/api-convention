@@ -13,7 +13,9 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    AMAP_KEY: str = ""
+    WEATHER_CITY: str = "410000"
 
 
 settings = Settings()
