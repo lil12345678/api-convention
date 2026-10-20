@@ -37,9 +37,13 @@ app.include_router(auth_router)
 from app.routers.exhibitors import router as exhibitors_router
 from app.routers.cameras import router as cameras_router
 from app.routers.weather import router as weather_router
+from app.routers.scene import router as scene_router
+from app.routers.chat import router as chat_router
+app.include_router(chat_router)
 app.include_router(exhibitors_router)
 app.include_router(cameras_router)
 app.include_router(weather_router)
+app.include_router(scene_router)
 
 # 创建所有表
 Base.metadata.create_all(bind=engine)# 创建所有表，bind=engine 绑定引擎，用于创建表。

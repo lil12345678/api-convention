@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     AMAP_KEY: str = ""
     WEATHER_CITY: str = "410000"
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
 
 
 settings = Settings()
