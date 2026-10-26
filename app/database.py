@@ -3,9 +3,16 @@ from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-# 本文件在 app/database.py，parent.parent 就是项目根目录 api-convention
+# # 本文件在 app/database.py，parent.parent 就是项目根目录 api-convention
+# BASE_DIA = Path(__file__).resolve().parent.parent
+# DB_PATH = BASE_DIA / "convention.db"
+
+#
 BASE_DIA = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIA / "convention.db"
+DATA_DIR = BASE_DIA / "convention-data"
+#
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH = DATA_DIR / "convention.db"
 
 # sqlite:/// 是固定前缀，后面跟文件路径\
 DATABASE_URL = f"sqlite:///{DB_PATH.as_posix()}"

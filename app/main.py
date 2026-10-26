@@ -12,7 +12,8 @@ from app.models import (
     Exhibition, 
     ExhibitionEvent, Alarm, WorkOrder, EnergyReading,
     ParkingStat, CrowdStat, HeatmapPoint, 
-    EmergencyRecord, Exhibitor, ExhibitorService, Camera
+    EmergencyRecord, Exhibitor, ExhibitorService, Camera,
+    ChatSession, ChatMessage,
   )  # 必须导入，create_all 才能看到这张表
 from app.seed import (
     seed_users_if_empty,

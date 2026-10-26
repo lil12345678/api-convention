@@ -4,8 +4,10 @@ import json
 
 from sqlalchemy import select
 
+from datetime import datetime, timedelta
+
 from app.models import Alarm, EnergyReading
-from app.ai_actions import ACTIONS, CommandError, check_command
+from app.ai_actions import ACTIONS, CommandError, check_command, _building
 from app.routers.scene import _ensure_device_type, _query_devices, _query_hall
 
 ALARM_LEVELS = ["一般", "重要", "严重"]
@@ -19,10 +21,25 @@ def _enum(value, allowed, label):
         raise ValueError(f"{label}不支持：{value}，可选：{'、'.join(allowed)}")
     return value
 
+def _alarm_date(value):
+    if not value:
+        return None
+    text = str(value).strip()
+    today = datetime.now().date()
+    if text in ("今天", "今日"):
+        return today.isoformat()
+    if text in ("昨天", "昨日"):
+        return (today - timedelta(days=1)).isoformat()
+    if len(text) >= 10 and text[4] == "-" and text[7] == "-":
+        return text[:10]
+    raise ValueError(f"日期不支持：{value}，用今天、昨天或 2026-10-20")
 
-def query_alarms(db, alarm_level=None, alarm_status=None, alarm_type=None, hall_name=None):
+
+
+def query_alarms(db, alarm_level=None, alarm_status=None, alarm_type=None, hall_name=None, date=None):
     alarm_level = _enum(alarm_level, ALARM_LEVELS, "告警等级")
     alarm_status = _enum(alarm_status, ALARM_STATUSES, "告警状态")
+    day = _alarm_date(date)
     stmt = select(Alarm)
     if alarm_level:
         stmt = stmt.where(Alarm.alarm_level == alarm_level)
@@ -31,7 +48,10 @@ def query_alarms(db, alarm_level=None, alarm_status=None, alarm_type=None, hall_
     if alarm_type:
         stmt = stmt.where(Alarm.alarm_type == alarm_type)
     if hall_name:
+        hall_name = _building(hall_name)
         stmt = stmt.where(Alarm.hall_name == hall_name)
+    if day:
+        stmt = stmt.where(Alarm.alarm_time.like(f"{day}%"))
     rows = db.scalars(stmt.order_by(Alarm.alarm_time.desc())).all()
 
     by_level = {name: 0 for name in ALARM_LEVELS}
@@ -42,6 +62,7 @@ def query_alarms(db, alarm_level=None, alarm_status=None, alarm_type=None, hall_
         by_status[row.alarm_status] = by_status.get(row.alarm_status, 0) + 1
         by_type[row.alarm_type] = by_type.get(row.alarm_type, 0) + 1
     return {
+        "date": day,
         "total": len(rows),
         "by_level": by_level,
         "by_status": by_status,
@@ -127,6 +148,7 @@ TOOLS = [
             "alarm_status": {"type": "string", "enum": ALARM_STATUSES, "description": "处理状态"},
             "alarm_type": {"type": "string", "description": "告警类型，如 AI视频告警、入侵告警、消防告警、设备告警"},
             "hall_name": {"type": "string", "description": "场馆名称，如 1号馆"},
+            "date": {"type": "string", "description": "今天、昨天，或 2026-10-20。问今天必须传今天。"},
         },
     ),
     _tool(

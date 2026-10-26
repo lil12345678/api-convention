@@ -79,3 +79,18 @@ Invoke-RestMethod -Uri http://127.0.0.1:8000/api/halls `
 - GET /api/crowd
 - GET /api/emergency
 - GET /api/heatmap?hall=1号馆
+
+## Docker启动
+开发仍用 start.bat 和前端的 npm run dev（页面在 http://localhost:3000）。要按上线方式跑时，先在 convention-3d 执行 npm run build，再回到上一级 convention 目录执行：docker compose up -d --build
+页面改为 http://localhost:8080，接口由 Nginx 转发到后端。停掉这一组用 docker compose down。.env 由 docker-compose.yml 的 env_file 传进容器，不要打进镜像。
+
+## 环境变量
+SECRET_KEY 签发登陆token
+ALGORITHM  签名算法，保持 HS256
+ACCESS_TOKEN_EXPIRE_MINUTES  token 有效分钟数，1440 就是 24 小时
+DEEPSEEK_API_KEY  对话用的密钥。空着时对话接口不能调用模型
+DEEPSEEK_BASE_URL  模型地址，默认 https://api.deepseek.com
+
+## AI
+能做的是：查告警、用电用水、设备在线/离线/故障、某个场馆的面积和介绍；切换综合态势、安防态势、设备运行、能源管理、会展信息；回到总览、显示场馆标签、定位到 1–16 号馆或三个登录厅、展开或收起楼层、开关人流热力图、打开设备分类、显示某类设备的三维标签。
+不能做的是：改天气、切换昼夜、漫游；编造数字、时间、面积、容量；改数据库里的数据；开关真实设备；生成或修改三维代码。画面类工具只负责校验指令，场景变化由浏览器里的前端执行。

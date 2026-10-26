@@ -24,8 +24,6 @@ SYSTEM = (
     "画面工具只负责校验，不会真的移动 3D。根据返回的 message 告诉用户指令已记下。"
     "天气、昼夜、漫游没有工具，直接说暂不支持。"
 )
-
-
 def complete(messages):
     if not settings.DEEPSEEK_API_KEY:
         raise SystemExit("未配置 DEEPSEEK_API_KEY，请写在 .env 里")
@@ -44,8 +42,6 @@ def complete(messages):
         message = body.get("error", body) if isinstance(body, dict) else body
         raise SystemExit(f"接口返回 {response.status_code}：{message}")
     return body["choices"][0]["message"]
-
-
 def ask(messages):
     db = SessionLocal()
     try:

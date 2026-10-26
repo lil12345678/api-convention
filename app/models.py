@@ -207,4 +207,24 @@ class Camera(Base):
     ) # 所在场馆，馆外为 NULL
     stream_url: Mapped[str] = mapped_column(String(255), nullable=False, default="") # 视频流地址，空字符串表示还没接入
     status: Mapped[str] = mapped_column(String(16), nullable=False) # 在线 / 离线
+
+
+#存储AI的提问和回答
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+
+    id:  Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[int] = mapped_column(Integer, ForeignKey("chat_sessions.id"), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
     
