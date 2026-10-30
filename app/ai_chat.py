@@ -148,6 +148,7 @@ def complete_stream(messages):
                 message = body.get("error", body) if isinstance(body, dict) else body
                 raise ChatError(502, f"模型接口返回 {response.status_code}：{message}")
             for line in response.iter_lines():
+                #response.iter_lines() 是 httpx 提供的迭代器，iter_lines()是httpx响应对象的一个方法，调用它就得到一个迭代器，每次给出响应里的一行
                 if not line or line.startswith(":"):
                     continue
                 if not line.startswith("data:"):
@@ -155,6 +156,9 @@ def complete_stream(messages):
                 data = line[5:].strip()
                 if data == "[DONE]":
                     break
+                #DeepSeek的回复是一行行到达的，前面写的是跳过空行和注释行
+                #再从data:开始，去掉data:，然后取出json数据，yield将json数据转换为python对象，并返回给调用者
+                #然后停住，等待下一次调用，等到【NONE]就结束。
                 yield json.loads(data)
     except ChatError as error:
         raise ChatError(502, f"模型接口失败：{error}") from error
@@ -187,13 +191,13 @@ def _chat_events(db, history, reply_parts = None):
             if delta.get("content"):
                 content_parts.append(delta["content"])
                 reply_parts.append(delta["content"])
-                yield _sse("delta", {"text": delta["content"]})
+                yield _sse("delta", {"text": delta["content"]})#yield暂停程序交出模型返回给调用者新生成的几个字符
             for piece in delta.get("tool_calls") or []:
                 _take_tool_piece(bucket, piece)
         if not bucket:
-            yield _sse("commands", {"commands": commands})
-            yield _sse("done", {"reply": "".join(reply_parts)})
-            return
+            yield _sse("commands", {"commands": commands})#yield暂停程序，交出大屏操作的命令，例如：切换场馆
+            yield _sse("done", {"reply": "".join(reply_parts)})#yield暂停程序，回答结束，交出最终的回答
+            return #正常返回，生成器到此不再给了
         tool_calls = [
            {
                 "id": bucket[index]["id"],
@@ -217,6 +221,7 @@ def _chat_events(db, history, reply_parts = None):
             arguments = json.loads(raw) if isinstance(raw, str) else raw
             if not isinstance(arguments, dict):
                 arguments = {}
+            #yield暂停程序，交出模型查询数据需要工具调用的名字和参数
             yield _sse("tool", {
                 "name": name,
                 "arguments": arguments,
@@ -258,10 +263,10 @@ def iter_chat_events(history, user_id=None):
         if user_id is not None and history:
             save_user_message(db, user_id, history[-1].get("content"))
         for piece in _chat_events(db, history, reply_parts):
-            yield piece
+            yield piece #每从for循环中要到piece，yield就原样交给StreamResponse
         if user_id is not None:
             save_assistant_message(db, user_id, "".join(reply_parts))
     except ChatError as error:
-        yield _sse("error", {"message": error.message})
+        yield _sse("error", {"message": error.message})#yield暂停程序，交出错误信息
     finally:
         db.close()

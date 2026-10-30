@@ -23,11 +23,13 @@ class ChatIn(BaseModel):
     messages:list[ChatRequest] = Field(min_length=1, max_length=20)
 
 #非流式对话
-@router.post("/chat")
+@router.post("/chat") 
+#router是fastapi中的APIRouter(...) 创建的实例，.post(...)是自带的方法，
+# @router.post(...)是装饰器，表示将chat函数注册为/api/chat的POST请求处理函数
 def chat(
     body:ChatIn,
-    db:Session = Depends(get_db),
-    _user:User = Depends(get_current_user),
+    db:Session = Depends(get_db),#Depends表示先调用get_db函数
+    _user:User = Depends(get_current_user),#Depends表示先调用get_current_user函数
     ):
     check_chat_rate(_user.id)
     try:
@@ -40,7 +42,7 @@ def chat(
 @router.post("/chat/stream")
 def chat_stream(
     body:ChatIn,
-    _user:User = Depends(get_current_user),
+    _user:User = Depends(get_current_user),#Depends表示先调用get_current_user函数
 ):
     check_chat_rate(_user.id)
     history = [item.model_dump() for item in body.messages]
@@ -56,7 +58,7 @@ def chat_stream(
 #获取对话历史
 @router.get("/chat/session")
 def chat_session(
-    db:Session = Depends(get_db),
-    _user:User = Depends(get_current_user),
+    db:Session = Depends(get_db),#Depends表示先调用get_db函数
+    _user:User = Depends(get_current_user),#Depends表示先调用get_current_user函数
 ):
     return ok(session_payload(db, _user.id))

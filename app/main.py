@@ -76,7 +76,8 @@ app.add_middleware(# 添加中间件，用于处理跨域请求
     allow_headers=["*"],# 允许跨域请求的头
 )
 
-
+#app是我创建的FastAPI实例，.get是fastapi自带的方法，
+# @app.get(...)是装饰器，表示将health函数注册为/health的GET请求处理函数
 @app.get("/health")
 def health():
     return ok({"status": "ok"})

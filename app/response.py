@@ -15,11 +15,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 def ok(data: Any = None, msg: str = "ok") -> dict[str, Any]:
-    return {"code": 0, "msg": msg, "data": data}
+    return {"code": 0, "msg": msg, "data": data}#信封体，成功的数据结构
 
 
 def fail_body(code: int, msg: str, data: Any = None) -> dict[str, Any]:
-    return {"code": code, "msg": msg, "data": data}
+    return {"code": code, "msg": msg, "data": data}#信封体，失败的数据结构
 
 
 def _detail_to_msg(detail: Any) -> str:
@@ -38,7 +38,7 @@ def _detail_to_msg(detail: Any) -> str:
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    @app.exception_handler(HTTPException)
+    @app.exception_handler(HTTPException)#处理 HTTPException 异常
     async def http_exception_handler(_request: Request, exc: HTTPException):
         return JSONResponse(
             status_code=exc.status_code,
@@ -46,14 +46,14 @@ def register_exception_handlers(app: FastAPI) -> None:
             headers=getattr(exc, "headers", None),
         )
 
-    @app.exception_handler(StarletteHTTPException)
+    @app.exception_handler(StarletteHTTPException)#处理 StarletteHTTPException 异常装饰器
     async def starlette_http_exception_handler(_request: Request, exc: StarletteHTTPException):
         return JSONResponse(
             status_code=exc.status_code,
             content=fail_body(exc.status_code, _detail_to_msg(exc.detail)),
         )
 
-    @app.exception_handler(RequestValidationError)
+    @app.exception_handler(RequestValidationError)#处理 RequestValidationError 异常装饰器
     async def validation_exception_handler(_request: Request, exc: RequestValidationError):
         return JSONResponse(
             status_code=422,

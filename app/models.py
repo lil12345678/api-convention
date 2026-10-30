@@ -13,6 +13,8 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class Hall(Base):
     __tablename__ = "halls"
 
@@ -108,10 +110,10 @@ class WorkOrder(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True) # 自增主键：工单ID
     device_id:Mapped[int] = mapped_column(
         Integer, ForeignKey("devices.id"), nullable = True, index = True
-    )
+    )#外键 → devices.id，设备可为 NULL
     hall_name:Mapped[str] = mapped_column(
         String(32), ForeignKey("halls.name"), nullable = True, index = True
-    )
+    )#外键 → halls.name，馆外可为 NULL
     order_type:Mapped[str] = mapped_column(String(32), nullable = False, index = True) # 工单类型：维修 / 保养 / 其他
     source:Mapped[str] = mapped_column(String(16), nullable = False, index = True) # 工单来源：系统自动生成 / 人工创建
     level:Mapped[str] = mapped_column(String(16), nullable = False) # 一般 / 重要 / 严重
@@ -144,7 +146,8 @@ class CrowdStat(Base):
     __tablename__ = "crowd_stats"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    hall_name: Mapped[str] = mapped_column(String(32), ForeignKey("halls.name"), nullable=False, index=True)
+    hall_name: Mapped[str] = mapped_column(
+        String(32), ForeignKey("halls.name"), nullable=False, index=True)
     headcount: Mapped[int] = mapped_column(Integer, nullable=False)
 
 class HeatmapPoint(Base):
